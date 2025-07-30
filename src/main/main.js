@@ -1,18 +1,15 @@
-import { app, BrowserWindow, ipcMain, Menu } from 'electron';
-import { fileURLToPath } from 'url';
-import { dirname, join } from 'path';
-import { DouyinCrawler } from '../crawler/crawler.js';
-import { Database } from '../database/database.js';
+const { app, BrowserWindow, ipcMain, Menu } = require('electron');
+const path = require('path');
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+// 由于使用 CommonJS，我们需要动态导入 ES 模块
+let DouyinCrawler, Database;
 
 class ElectronApp {
   constructor() {
     this.mainWindow = null;
-    this.db = new Database();
-    this.crawler = new DouyinCrawler(this.db);
-    this.isDev = process.argv.includes('--dev');
+    this.db = null;
+    this.crawler = null;
+    this.isDev = process.argv.includes('--dev') || process.env.NODE_ENV === 'development';
   }
 
   async createWindow() {
@@ -25,15 +22,19 @@ class ElectronApp {
       webPreferences: {
         nodeIntegration: false,
         contextIsolation: true,
-        preload: join(__dirname, '../preload/preload.js')
+        preload: path.join(__dirname, '../preload/preload.cjs')
       },
       titleBarStyle: 'hiddenInset',
       show: false
     });
 
     // 加载页面
-    const htmlPath = join(__dirname, '../renderer/index.html');
-    await this.mainWindow.loadFile(htmlPath);
+    if (this.isDev) {
+      await this.mainWindow.loadURL('http://localhost:5174');
+    } else {
+      const htmlPath = path.join(__dirname, '../../dist/index.html');
+      await this.mainWindow.loadFile(htmlPath);
+    }
 
     // 开发模式打开调试工具
     if (this.isDev) {
@@ -149,13 +150,28 @@ class ElectronApp {
   }
 
   async init() {
-    // 初始化数据库
-    await this.db.init();
-    
-    // 设置IPC通信
-    this.setupIPC();
-    
-    console.log('✅ 应用初始化完成');
+    try {
+      // 动态导入 ES 模块
+      const crawlerModule = await import('../crawler/crawler.mjs');
+      const databaseModule = await import('../database/database.mjs');
+      
+      DouyinCrawler = crawlerModule.DouyinCrawler;
+      Database = databaseModule.Database;
+
+      // 初始化数据库和爬虫
+      this.db = new Database();
+      await this.db.init();
+      
+      this.crawler = new DouyinCrawler(this.db);
+      
+      // 设置IPC通信
+      this.setupIPC();
+      
+      console.log('✅ 应用初始化完成');
+    } catch (error) {
+      console.error('❌ 应用初始化失败:', error);
+      throw error;
+    }
   }
 }
 

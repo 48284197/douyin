@@ -2,15 +2,15 @@
   "name": "douyin-live-monitor",
   "version": "1.0.0",
   "description": "抖音直播评论监听桌面应用",
-  "main": "src/main/main.js",
-  "type": "module",
+  "main": "dist-electron/main.js",
   "scripts": {
-    "dev": "concurrently \"bun run dev:renderer\" \"wait-on http://localhost:5173 && electron .\"",
+    "dev": "vite",
+    "dev:old": "concurrently \"bun run dev:renderer\" \"wait-on http://localhost:5174 && electron .\"",
     "dev:renderer": "vite",
     "build:renderer": "vite build",
-    "build": "bun run build:renderer && electron-builder",
-    "pack": "bun run build:renderer && electron-builder --dir",
-    "dist": "bun run build:renderer && electron-builder --publish=never",
+    "build": "vite build && electron-builder",
+    "pack": "vite build && electron-builder --dir",
+    "dist": "vite build && electron-builder --publish=never",
     "preview": "vite preview",
     "electron": "electron ."
   },
@@ -24,8 +24,9 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
+    "better-sqlite3": "^9.4.3",
     "cheerio": "^1.0.0-rc.12",
-    "electron": "^27.0.0",
+    "electron": "^27.3.11",
     "lucide-react": "^0.294.0",
     "puppeteer": "^21.0.0",
     "react": "^18.2.0",
@@ -42,6 +43,7 @@
     "postcss": "^8.4.31",
     "tailwindcss": "^3.3.5",
     "vite": "^4.5.0",
+    "vite-plugin-electron": "^0.15.5",
     "wait-on": "^7.2.0"
   },
   "build": {
