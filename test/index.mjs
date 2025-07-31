@@ -18,8 +18,8 @@ d.on('new-comment', (comment) => {
 });
 
 try {
-  await d.startMonitoring('https://live.douyin.com/742385042555?activity_name=&anchor_id=67555205972&banner_type=recommend&category_name=all&page_type=live_main_page');
-  console.log('监听已开始，按 Ctrl+C 停止');
+  await d.startMonitoring('https://live.douyin.com/332506829704');
+
 } catch (error) {
   console.error('启动失败:', error.message);
   process.exit(1);
