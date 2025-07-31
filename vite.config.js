@@ -16,7 +16,6 @@ export default defineConfig({
             rollupOptions: {
               external: [
                 'electron',
-                'better-sqlite3',
                 'puppeteer',
                 'puppeteer-core',
                 'cheerio'

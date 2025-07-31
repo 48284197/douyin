@@ -22,9 +22,10 @@ class ElectronApp {
       webPreferences: {
         nodeIntegration: false,
         contextIsolation: true,
-        preload: path.join(__dirname, '../preload/preload.cjs')
+        preload: path.join(__dirname, 'preload.js')
       },
-      titleBarStyle: 'hiddenInset',
+      titleBarStyle: 'default',
+      frame: true,
       show: false
     });
 
@@ -71,12 +72,31 @@ class ElectronApp {
           },
           { type: 'separator' },
           {
+            label: '关闭窗口',
+            accelerator: 'CmdOrCtrl+W',
+            click: () => {
+              this.mainWindow.close();
+            }
+          },
+          {
             label: '退出',
             accelerator: process.platform === 'darwin' ? 'Cmd+Q' : 'Ctrl+Q',
             click: () => {
               app.quit();
             }
           }
+        ]
+      },
+      {
+        label: '编辑',
+        submenu: [
+          { role: 'undo', label: '撤销' },
+          { role: 'redo', label: '重做' },
+          { type: 'separator' },
+          { role: 'cut', label: '剪切' },
+          { role: 'copy', label: '复制' },
+          { role: 'paste', label: '粘贴' },
+          { role: 'selectall', label: '全选' }
         ]
       },
       {

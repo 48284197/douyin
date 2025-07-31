@@ -1,105 +1,54 @@
-import BetterSqlite3 from 'better-sqlite3';
 import { join } from 'path';
 import { existsSync, mkdirSync } from 'fs';
 
 export class Database {
   constructor() {
-    this.db = null;
-    this.dbPath = join(process.cwd(), 'data', 'comments.db');
+    this.comments = [];
+    this.userStats = new Map();
+    this.liveSessions = new Map();
+    this.dataDir = join(process.cwd(), 'data');
   }
 
   async init() {
     try {
       // 确保数据目录存在
-      const dataDir = join(process.cwd(), 'data');
-      if (!existsSync(dataDir)) {
-        mkdirSync(dataDir, { recursive: true });
+      if (!existsSync(this.dataDir)) {
+        mkdirSync(this.dataDir, { recursive: true });
       }
-
-      // 初始化数据库
-      this.db = new BetterSqlite3(this.dbPath);
       
-      // 创建表结构
-      await this.createTables();
-      
-      console.log('✅ 数据库初始化完成');
+      console.log('✅ 内存数据库初始化完成');
     } catch (error) {
       console.error('❌ 数据库初始化失败:', error);
       throw error;
     }
   }
 
-  async createTables() {
-    try {
-      // 评论表
-      this.db.exec(`
-        CREATE TABLE IF NOT EXISTS comments (
-          id TEXT PRIMARY KEY,
-          username TEXT NOT NULL,
-          content TEXT NOT NULL,
-          timestamp INTEGER NOT NULL,
-          user_id TEXT,
-          level INTEGER DEFAULT 0,
-          avatar TEXT,
-          gift_name TEXT,
-          gift_count INTEGER DEFAULT 1,
-          live_url TEXT,
-          created_at INTEGER DEFAULT (strftime('%s', 'now'))
-        )
-      `);
 
-      // 创建索引
-      this.db.exec(`CREATE INDEX IF NOT EXISTS idx_comments_timestamp ON comments(timestamp)`);
-      this.db.exec(`CREATE INDEX IF NOT EXISTS idx_comments_live_url ON comments(live_url)`);
-
-      // 直播间统计表
-      this.db.exec(`
-        CREATE TABLE IF NOT EXISTS live_sessions (
-          url TEXT PRIMARY KEY,
-          title TEXT,
-          streamer TEXT,
-          start_time INTEGER,
-          end_time INTEGER,
-          total_comments INTEGER DEFAULT 0,
-          created_at INTEGER DEFAULT (strftime('%s', 'now'))
-        )
-      `);
-
-      // 用户统计表
-      this.db.exec(`
-        CREATE TABLE IF NOT EXISTS user_stats (
-          user_id TEXT PRIMARY KEY,
-          username TEXT,
-          comment_count INTEGER DEFAULT 0,
-          last_comment_time INTEGER,
-          first_seen INTEGER DEFAULT (strftime('%s', 'now'))
-        )
-      `);
-    } catch (error) {
-      throw error;
-    }
-  }
 
   async saveComment(comment) {
     try {
-      const stmt = this.db.prepare(`
-        INSERT OR REPLACE INTO comments 
-        (id, username, content, timestamp, user_id, level, avatar, gift_name, gift_count, live_url)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `);
-
-      stmt.run(
-        comment.id,
-        comment.username,
-        comment.content,
-        comment.timestamp,
-        comment.userId,
-        comment.level,
-        comment.avatar,
-        comment.giftName,
-        comment.giftCount,
-        comment.liveUrl
-      );
+      // 检查是否已存在相同ID的评论
+      const existingIndex = this.comments.findIndex(c => c.id === comment.id);
+      
+      const commentData = {
+        id: comment.id,
+        username: comment.username,
+        content: comment.content,
+        timestamp: comment.timestamp,
+        user_id: comment.userId,
+        level: comment.level,
+        avatar: comment.avatar,
+        gift_name: comment.giftName,
+        gift_count: comment.giftCount,
+        live_url: comment.liveUrl,
+        created_at: Date.now()
+      };
+      
+      if (existingIndex >= 0) {
+        this.comments[existingIndex] = commentData;
+      } else {
+        this.comments.push(commentData);
+      }
 
       // 更新用户统计
       await this.updateUserStats(comment);
@@ -113,18 +62,20 @@ export class Database {
 
   async updateUserStats(comment) {
     try {
-      const stmt = this.db.prepare(`
-        INSERT OR REPLACE INTO user_stats 
-        (user_id, username, comment_count, last_comment_time)
-        VALUES (
-          ?, 
-          ?, 
-          COALESCE((SELECT comment_count FROM user_stats WHERE user_id = ?), 0) + 1,
-          ?
-        )
-      `);
-
-      stmt.run(comment.userId, comment.username, comment.userId, comment.timestamp);
+      const userId = comment.userId;
+      const existing = this.userStats.get(userId) || {
+        user_id: userId,
+        username: comment.username,
+        comment_count: 0,
+        last_comment_time: 0,
+        first_seen: Date.now()
+      };
+      
+      existing.username = comment.username;
+      existing.comment_count += 1;
+      existing.last_comment_time = comment.timestamp;
+      
+      this.userStats.set(userId, existing);
     } catch (error) {
       console.error('更新用户统计失败:', error);
       throw error;
@@ -141,29 +92,26 @@ export class Database {
         endTime = null
       } = options;
 
-      let query = 'SELECT * FROM comments WHERE 1=1';
-      const params = [];
+      let filteredComments = [...this.comments];
 
+      // 过滤条件
       if (liveUrl) {
-        query += ' AND live_url = ?';
-        params.push(liveUrl);
+        filteredComments = filteredComments.filter(c => c.live_url === liveUrl);
       }
 
       if (startTime) {
-        query += ' AND timestamp >= ?';
-        params.push(startTime);
+        filteredComments = filteredComments.filter(c => c.timestamp >= startTime);
       }
 
       if (endTime) {
-        query += ' AND timestamp <= ?';
-        params.push(endTime);
+        filteredComments = filteredComments.filter(c => c.timestamp <= endTime);
       }
 
-      query += ' ORDER BY timestamp DESC LIMIT ? OFFSET ?';
-      params.push(limit, offset);
+      // 按时间戳降序排序
+      filteredComments.sort((a, b) => b.timestamp - a.timestamp);
 
-      const stmt = this.db.prepare(query);
-      return stmt.all(...params);
+      // 分页
+      return filteredComments.slice(offset, offset + limit);
     } catch (error) {
       console.error('获取评论失败:', error);
       throw error;
@@ -204,18 +152,21 @@ export class Database {
 
   async getStats() {
     try {
-      const totalComments = this.db.prepare('SELECT COUNT(*) as count FROM comments').get();
-      const totalUsers = this.db.prepare('SELECT COUNT(*) as count FROM user_stats').get();
-      const topUsers = this.db.prepare(`
-        SELECT username, comment_count 
-        FROM user_stats 
-        ORDER BY comment_count DESC 
-        LIMIT 10
-      `).all();
+      const totalComments = this.comments.length;
+      const totalUsers = this.userStats.size;
+      
+      // 获取评论数最多的前10个用户
+      const topUsers = Array.from(this.userStats.values())
+        .sort((a, b) => b.comment_count - a.comment_count)
+        .slice(0, 10)
+        .map(user => ({
+          username: user.username,
+          comment_count: user.comment_count
+        }));
 
       return {
-        totalComments: totalComments.count,
-        totalUsers: totalUsers.count,
+        totalComments,
+        totalUsers,
         topUsers
       };
     } catch (error) {
@@ -225,9 +176,9 @@ export class Database {
   }
 
   close() {
-    if (this.db) {
-      this.db.close();
-      this.db = null;
-    }
+    // 清理内存数据
+    this.comments = [];
+    this.userStats.clear();
+    this.liveSessions.clear();
   }
 }

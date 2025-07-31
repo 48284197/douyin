@@ -1,10 +1,9 @@
-import { DouyinCrawler } from './crawler.js';
-import { Database } from './database.js';
-import { WebServer } from './server.js';
+import { DouyinCrawler } from './crawler/crawler.mjs';
+import { WebServer } from './server.mjs';
 
 class DouyinLiveMonitor {
   constructor() {
-    this.db = new Database();
+    // this.db = new Database();
     this.crawler = new DouyinCrawler(this.db);
     this.server = new WebServer(this.db);
   }
@@ -13,7 +12,7 @@ class DouyinLiveMonitor {
     console.log('🚀 启动抖音直播监听器...');
     
     // 初始化数据库
-    await this.db.init();
+    // await this.db.init();
     
     // 启动Web服务器
     await this.server.start();

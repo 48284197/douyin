@@ -18,7 +18,6 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "better-sqlite3": "^9.4.3",
     "cheerio": "^1.0.0-rc.12",
     "electron": "^37.2.4",
     "lucide-react": "^0.294.0",

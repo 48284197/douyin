@@ -41,6 +41,10 @@ function App() {
     // 监听菜单操作
     window.electronAPI?.onMenuAction((action) => {
       if (action === 'start') {
+        if (!liveUrl.trim()) {
+          alert('请输入直播间URL');
+          return;
+        }
         handleStartMonitoring();
       } else if (action === 'stop') {
         handleStopMonitoring();
@@ -53,7 +57,7 @@ function App() {
       window.electronAPI?.removeAllListeners('menu-start-monitoring');
       window.electronAPI?.removeAllListeners('menu-stop-monitoring');
     };
-  }, []);
+  }, [liveUrl]);
 
   const handleStartMonitoring = async () => {
     if (!liveUrl.trim()) {
