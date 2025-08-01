@@ -15,7 +15,7 @@ export class DouyinCrawler extends EventEmitter {
   async startMonitoring(liveUrl) {
     // 保存当前直播间URL
     this.currentLiveUrl = liveUrl;
-    
+
     try {
       this.emit('status-change', { status: 'connecting' });
     } catch (error) {
@@ -121,41 +121,39 @@ export class DouyinCrawler extends EventEmitter {
   async domChange() {
     console.log('开始监听DOM变化')
     if (!this.page) {
+      console.log('未找到页面')
       return
     }
-    
+
     try {
       // 等待页面加载完成
+      console.log(1)
       await this.page.waitForSelector('body', { timeout: 10000 });
-      
+      console.log(2)
       // 在页面中注入DOM监听脚本
       await this.page.evaluateOnNewDocument(() => {
+        console.log('注入DOM监听脚本')
         // 防止重复注入
         if (window.douyinDOMObserver) {
+          console.log('重复注入')
           return;
         }
-        
+
         window.douyinDOMObserver = true;
-        
+
         // 等待DOM加载完成后开始监听
         const startObserver = () => {
-          // 评论区可能的选择器
-          const commentSelectors = [
-            '.webcast-chatroom___content-with-emoji-text',
-            '[data-e2e="comment-list"]',
-            '.comment-list',
-            '.webcast-chatroom___item',
-            '.webcast-chatroom___content',
-            '[class*="comment"]',
-            '[class*="chat"]',
-            '[class*="message"]'
-          ];
-          
-          let commentContainer  = document.querySelector('.webcast-chatroom___list');;
-          
-      
+          console.log('开始监听')
+          let commentContainer = document.querySelector('.webcast-chatroom___list');
 
-          
+          if (!commentContainer) {
+            console.log('未找到评论容器')
+          }
+
+
+          if (!commentContainer) {
+            console.log('未找到评论容器')
+          }
           // 创建MutationObserver
           const observer = new MutationObserver((mutations) => {
             mutations.forEach((mutation) => {
@@ -163,21 +161,20 @@ export class DouyinCrawler extends EventEmitter {
               if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
                 mutation.addedNodes.forEach((node) => {
                   if (node.nodeType === Node.ELEMENT_NODE) {
+                    console.log(node)
                     // 检查是否是评论相关的元素
-                    const isCommentElement = (
-                      node.classList.contains('.webcast-chatroom___content-with-emoji-text')
-                    );
+                    const isCommentElement = node.querySelector('.webcast-chatroom___content-with-emoji-text');
 
                     console.log(isCommentElement)
-                      return
+
                     if (isCommentElement) {
                       console.log('检测到新的评论元素:', node);
-                      
+
                       // 提取评论文本
                       const commentText = node.textContent.trim();
                       if (commentText && commentText.length > 0) {
                         console.log('提取到评论文本:', commentText);
-                        
+
                         // 触发自定义事件
                         const event = new CustomEvent('newComment', {
                           detail: {
@@ -192,7 +189,7 @@ export class DouyinCrawler extends EventEmitter {
                   }
                 });
               }
-              
+
               // 监听文本内容变化
               if (mutation.type === 'characterData') {
                 const text = mutation.target.textContent.trim();
@@ -202,7 +199,7 @@ export class DouyinCrawler extends EventEmitter {
               }
             });
           });
-          
+
           // 开始观察
           observer.observe(commentContainer, {
             childList: true,
@@ -210,22 +207,17 @@ export class DouyinCrawler extends EventEmitter {
             characterData: true,
             attributes: false
           });
-          
-         
+
+
         };
-        
-        // 如果DOM已加载完成，立即开始监听
-        if (document.readyState === 'loading') {
-          document.addEventListener('DOMContentLoaded', startObserver);
-        } else {
-          startObserver();
-        }
+        startObserver();
+
       });
-      
+
       // 监听页面中的自定义评论事件
       await this.page.exposeFunction('handleDOMComment', (commentData) => {
         console.log('DOM监听到新评论:', commentData);
-        
+
         // 构造评论对象
         const comment = {
           content: commentData.text,
@@ -236,11 +228,11 @@ export class DouyinCrawler extends EventEmitter {
           timestamp: commentData.timestamp,
           source: 'dom'
         };
-        
+
         // 处理评论
         this.handleNewComment(comment);
       });
-      
+
       // 在页面中监听自定义事件
       await this.page.evaluate(() => {
         document.addEventListener('newComment', (event) => {
@@ -249,9 +241,9 @@ export class DouyinCrawler extends EventEmitter {
           }
         });
       });
-      
+
       console.log('✅ DOM变化监听器设置完成');
-      
+
     } catch (error) {
       console.error('设置DOM监听器失败:', error.message);
     }
@@ -263,12 +255,12 @@ export class DouyinCrawler extends EventEmitter {
       if (!comment || !comment.content) {
         return;
       }
-      
+
       // 过滤过短或过长的评论
       if (comment.content.length < 2 || comment.content.length > 500) {
         return;
       }
-      
+
       // 标准化评论对象
       const standardComment = {
         id: `dom_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
@@ -280,22 +272,22 @@ export class DouyinCrawler extends EventEmitter {
         user_id: comment.user?.id || comment.user_id || '',
         level: comment.user?.level || comment.level || 0
       };
-      
+
       console.log('🎯 DOM捕获新评论:', {
         username: standardComment.username,
         content: standardComment.content.substring(0, 50) + (standardComment.content.length > 50 ? '...' : '')
       });
-      
+
       // 保存到数据库
       if (this.database) {
         this.database.saveComment(standardComment).catch((err) => {
           console.error('保存评论到数据库失败:', err.message);
         });
       }
-      
+
       // 发射事件
       this.emit('new-comment', standardComment);
-      
+
     } catch (error) {
       console.error('处理新评论失败:', error.message);
     }
