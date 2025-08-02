@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>测试页面</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            min-height: 100vh;
+            margin: 0;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            text-align: center;
+        }
+        .status {
+            background: rgba(255,255,255,0.1);
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+        }
+        button {
+            background: #fe2c55;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 10px;
+        }
+        button:hover {
+            background: #e91e63;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎯 抖音直播监听器</h1>
+        <div class="status">
+            <h2>系统状态检查</h2>
+            <p id="electron-status">检查 Electron API...</p>
+            <p id="preload-status">检查 Preload 脚本...</p>
+        </div>
+        
+        <div>
+            <input type="text" id="liveUrl" placeholder="输入直播间URL" style="width: 300px; padding: 10px; margin: 10px;">
+            <br>
+            <button onclick="startTest()">开始测试</button>
+            <button onclick="stopTest()">停止测试</button>
+        </div>
+        
+        <div id="messages" style="margin-top: 20px; text-align: left; background: rgba(0,0,0,0.3); padding: 20px; border-radius: 10px; max-height: 400px; overflow-y: auto;">
+            <h3>消息日志:</h3>
+        </div>
+    </div>
+
+    <script>
+        function log(message) {
+            const messagesDiv = document.getElementById('messages');
+            const p = document.createElement('p');
+            p.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            messagesDiv.appendChild(p);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+
+        // 检查 Electron API
+        if (window.electronAPI) {
+            document.getElementById('electron-status').textContent = '✅ Electron API 可用';
+            document.getElementById('preload-status').textContent = '✅ Preload 脚本加载成功';
+            
+            // 监听新评论
+            window.electronAPI.onNewComment((comment) => {
+                log(`新评论: ${comment.username}: ${comment.content}`);
+            });
+            
+            // 监听状态变化
+            window.electronAPI.onStatusChange((status) => {
+                log(`状态变化: ${JSON.stringify(status)}`);
+            });
+            
+        } else {
+            document.getElementById('electron-status').textContent = '❌ Electron API 不可用';
+            document.getElementById('preload-status').textContent = '❌ Preload 脚本加载失败';
+        }
+
+        async function startTest() {
+            const liveUrl = document.getElementById('liveUrl').value;
+            if (!liveUrl) {
+                alert('请输入直播间URL');
+                return;
+            }
+            
+            log('开始启动监听...');
+            try {
+                const result = await window.electronAPI.startMonitoring(liveUrl);
+                if (result.success) {
+                    log('✅ 监听启动成功');
+                } else {
+                    log(`❌ 监听启动失败: ${result.error}`);
+                }
+            } catch (error) {
+                log(`❌ 启动异常: ${error.message}`);
+            }
+        }
+
+        async function stopTest() {
+            log('停止监听...');
+            try {
+                const result = await window.electronAPI.stopMonitoring();
+                if (result.success) {
+                    log('✅ 监听已停止');
+                } else {
+                    log(`❌ 停止失败: ${result.error}`);
+                }
+            } catch (error) {
+                log(`❌ 停止异常: ${error.message}`);
+            }
+        }
+
+        log('测试页面加载完成');
+    </script>
+</body>
+</html>

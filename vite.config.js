@@ -26,7 +26,7 @@ export default defineConfig({
       },
       {
         // Preload script
-        entry: 'src/preload/preload.cjs',
+        entry: 'src/preload/simple-preload.js',
         onstart(options) {
           // Notify the Renderer process to reload the page when the Preload scripts build is complete
           options.reload();

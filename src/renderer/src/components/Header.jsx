@@ -1,7 +1,7 @@
 import React from 'react';
 import { Video } from 'lucide-react';
 
-const Header = ({ status }) => {
+const Header = ({ status, apiReady }) => {
   const getStatusInfo = () => {
     switch (status) {
       case 'monitoring':
@@ -25,11 +25,19 @@ const Header = ({ status }) => {
           <h1 className="text-2xl font-bold text-gray-800">抖音直播监听器</h1>
         </div>
         
-        <div className="flex items-center gap-3">
-          <span className="text-sm text-gray-600">{statusInfo.text}</span>
-          <div className={`w-3 h-3 rounded-full ${statusInfo.color} ${
-            statusInfo.pulse ? 'animate-pulse' : ''
-          }`} />
+        <div className="flex items-center gap-6">
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-gray-500">API:</span>
+            <div className={`w-2 h-2 rounded-full ${apiReady ? 'bg-green-500' : 'bg-red-500'}`} />
+            <span className="text-xs text-gray-600">{apiReady ? '就绪' : '未就绪'}</span>
+          </div>
+          
+          <div className="flex items-center gap-3">
+            <span className="text-sm text-gray-600">{statusInfo.text}</span>
+            <div className={`w-3 h-3 rounded-full ${statusInfo.color} ${
+              statusInfo.pulse ? 'animate-pulse' : ''
+            }`} />
+          </div>
         </div>
       </div>
     </header>

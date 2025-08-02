@@ -1,5 +1,6 @@
 import puppeteer from 'puppeteer';
 import { EventEmitter } from 'events';
+import { OptimizedDouyinDecoder } from '../decoder/optimized-decoder.mjs';
 
 export class DouyinCrawler extends EventEmitter {
   constructor(database) {
@@ -8,13 +9,47 @@ export class DouyinCrawler extends EventEmitter {
     this.browser = null;
     this.page = null;
     this.isMonitoring = false;
-    this.healthCheckInterval = null;
-    this.commentPollingInterval = null;
+    this.roomId = null;
+    this.currentLiveUrl = null;
+    this.decoder = new OptimizedDouyinDecoder();
+  }
+
+  // 从URL中提取房间ID
+  extractRoomId(url) {
+    try {
+      // 匹配 https://live.douyin.com/123456789 格式
+      const match = url.match(/live\.douyin\.com\/(\d+)/);
+      if (match && match[1]) {
+        return match[1];
+      }
+
+      // 如果URL中包含其他参数，尝试其他匹配方式
+      const urlObj = new URL(url);
+      const pathname = urlObj.pathname;
+      const roomIdMatch = pathname.match(/\/(\d+)/);
+
+      if (roomIdMatch && roomIdMatch[1]) {
+        return roomIdMatch[1];
+      }
+
+      return null;
+    } catch (error) {
+      console.error('提取房间ID失败:', error.message);
+      return null;
+    }
   }
 
   async startMonitoring(liveUrl) {
     // 保存当前直播间URL
     this.currentLiveUrl = liveUrl;
+
+    // 从URL中提取房间ID
+    this.roomId = this.extractRoomId(liveUrl);
+    if (!this.roomId) {
+      throw new Error('无法从URL中提取房间ID: ' + liveUrl);
+    }
+
+    console.log('🏠 房间ID:', this.roomId);
 
     try {
       this.emit('status-change', { status: 'connecting' });
@@ -23,274 +58,282 @@ export class DouyinCrawler extends EventEmitter {
     }
 
     // 启动浏览器
-    let browserRetryCount = 0;
-    const maxBrowserRetries = 3;
+    await this.startBrowser();
 
-    while (browserRetryCount < maxBrowserRetries) {
-      try {
-        // 检测是否在 Electron 环境中运行
-        const isElectron = typeof process !== 'undefined' && process.versions && process.versions.electron;
+    // 访问直播间页面
+    await this.navigateToLiveRoom(liveUrl);
 
-        const launchOptions = {
-          headless: 'new',
-          args: [
-            '--no-sandbox',
-            '--disable-setuid-sandbox',
-            '--disable-dev-shm-usage'
-          ],
-          timeout: 15000,
-          ignoreHTTPSErrors: true,
-          defaultViewport: null
-        };
-
-        // 如果不在 Electron 环境中，尝试使用系统 Chrome
-        if (!isElectron) {
-          try {
-            // 尝试使用系统安装的 Chrome
-            launchOptions.executablePath = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
-          } catch (error) {
-            // 如果找不到系统 Chrome，使用默认的 Chromium
-            console.log('未找到系统 Chrome，使用默认 Chromium');
-          }
-        }
-
-        this.browser = await puppeteer.launch(launchOptions);
-        break; // 成功启动则跳出循环
-      } catch (browserError) {
-        browserRetryCount++;
-        console.log(`浏览器启动失败 (${browserRetryCount}/${maxBrowserRetries}):`, browserError.message);
-
-        if (browserRetryCount >= maxBrowserRetries) {
-          throw new Error(`浏览器启动失败，已重试 ${maxBrowserRetries} 次: ${browserError.message}`);
-        } else {
-          // 等待一段时间后重试
-          await new Promise(resolve => setTimeout(resolve, 2000 * browserRetryCount));
-        }
-      }
-    }
-
-    // 创建新页面
-    this.page = await this.browser.newPage();
-    this.page.setDefaultTimeout(15000);
-    this.page.setDefaultNavigationTimeout(15000);
-
-    // 设置用户代理
-    await this.page.setUserAgent('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
-
-    // 监听网络请求，捕获评论数据
-    await this.page.setRequestInterception(true);
-
-    this.page.on('request', (request) => {
-      request.continue();
-    });
-
-
-
-    // 监听WebSocket消息
-    // await this.setupWebSocketListener();
-
-    // 基础错误监听
-    this.page.on('error', (error) => {
-      console.error('页面错误:', error.message);
-    });
-
-    // 访问直播间
-    console.log('正在访问直播间:', liveUrl);
-    await this.page.goto(liveUrl, {
-      waitUntil: 'domcontentloaded',
-      timeout: 15000
-    });
-    console.log('✅ 成功访问直播间');
-
-    // 等待页面加载完成
-    await this.page.waitForTimeout(3000);
+    // 监听页面的WebSocket请求
+    await this.setupWebSocketInterception();
 
     this.isMonitoring = true;
     this.emit('status-change', { status: 'monitoring' });
-
-    //监听dom变化
-    await this.domChange();
-
-
-
   }
 
-
-
-  //获取最后一条评论
-  async domChange() {
-    console.log('开始监听DOM变化')
-    if (!this.page) {
-      console.log('未找到页面')
-      return
-    }
-
+  // 启动浏览器
+  async startBrowser() {
     try {
-      // 等待页面加载完成
-      console.log(1)
-      await this.page.waitForSelector('body', { timeout: 10000 });
-      console.log(2)
-      // 在页面中注入DOM监听脚本
-      await this.page.evaluateOnNewDocument(() => {
-        console.log('注入DOM监听脚本')
-        // 防止重复注入
-        if (window.douyinDOMObserver) {
-          console.log('重复注入')
-          return;
-        }
+      console.log('🚀 启动浏览器...');
 
-        window.douyinDOMObserver = true;
-
-        // 等待DOM加载完成后开始监听
-        const startObserver = () => {
-          console.log('开始监听')
-          let commentContainer = document.querySelector('.webcast-chatroom___list');
-
-          if (!commentContainer) {
-            console.log('未找到评论容器')
-          }
-
-
-          if (!commentContainer) {
-            console.log('未找到评论容器')
-          }
-          // 创建MutationObserver
-          const observer = new MutationObserver((mutations) => {
-            mutations.forEach((mutation) => {
-              // 监听新增的节点
-              if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
-                mutation.addedNodes.forEach((node) => {
-                  if (node.nodeType === Node.ELEMENT_NODE) {
-                    console.log(node)
-                    // 检查是否是评论相关的元素
-                    const isCommentElement = node.querySelector('.webcast-chatroom___content-with-emoji-text');
-
-                    console.log(isCommentElement)
-
-                    if (isCommentElement) {
-                      console.log('检测到新的评论元素:', node);
-
-                      // 提取评论文本
-                      const commentText = node.textContent.trim();
-                      if (commentText && commentText.length > 0) {
-                        console.log('提取到评论文本:', commentText);
-
-                        // 触发自定义事件
-                        const event = new CustomEvent('newComment', {
-                          detail: {
-                            text: commentText,
-                            element: node,
-                            timestamp: Date.now()
-                          }
-                        });
-                        document.dispatchEvent(event);
-                      }
-                    }
-                  }
-                });
-              }
-
-              // 监听文本内容变化
-              if (mutation.type === 'characterData') {
-                const text = mutation.target.textContent.trim();
-                if (text && text.length > 0) {
-                  console.log('检测到文本变化:', text);
-                }
-              }
-            });
-          });
-
-          // 开始观察
-          observer.observe(commentContainer, {
-            childList: true,
-            subtree: true,
-            characterData: true,
-            attributes: false
-          });
-
-
-        };
-        startObserver();
-
-      });
-
-      // 监听页面中的自定义评论事件
-      await this.page.exposeFunction('handleDOMComment', (commentData) => {
-        console.log('DOM监听到新评论:', commentData);
-
-        // 构造评论对象
-        const comment = {
-          content: commentData.text,
-          user: {
-            nickname: '未知用户',
-            id: 'dom_user_' + Date.now()
-          },
-          timestamp: commentData.timestamp,
-          source: 'dom'
-        };
-
-        // 处理评论
-        this.handleNewComment(comment);
-      });
-
-      // 在页面中监听自定义事件
-      await this.page.evaluate(() => {
-        document.addEventListener('newComment', (event) => {
-          if (window.handleDOMComment) {
-            window.handleDOMComment(event.detail);
-          }
-        });
-      });
-
-      console.log('✅ DOM变化监听器设置完成');
-
-    } catch (error) {
-      console.error('设置DOM监听器失败:', error.message);
-    }
-  }
-
-  // 处理新评论
-  handleNewComment(comment) {
-    try {
-      if (!comment || !comment.content) {
-        return;
-      }
-
-      // 过滤过短或过长的评论
-      if (comment.content.length < 2 || comment.content.length > 500) {
-        return;
-      }
-
-      // 标准化评论对象
-      const standardComment = {
-        id: `dom_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-        username: comment.user?.nickname || comment.username || '匿名用户',
-        content: comment.content.trim(),
-        timestamp: comment.timestamp || Date.now(),
-        source: comment.source || 'dom',
-        live_url: this.currentLiveUrl || '',
-        user_id: comment.user?.id || comment.user_id || '',
-        level: comment.user?.level || comment.level || 0
+      const launchOptions = {
+        headless: false, // 非无头模式，便于调试
+        args: [
+          '--no-sandbox',
+          '--disable-setuid-sandbox',
+          '--disable-dev-shm-usage',
+          '--disable-blink-features=AutomationControlled',
+          '--disable-web-security',
+          '--disable-features=site-per-process'
+        ],
+        timeout: 15000,
+        ignoreHTTPSErrors: true,
+        defaultViewport: { width: 1366, height: 768 }
       };
 
-      console.log('🎯 DOM捕获新评论:', {
-        username: standardComment.username,
-        content: standardComment.content.substring(0, 50) + (standardComment.content.length > 50 ? '...' : '')
+      // 尝试使用系统Chrome
+      try {
+        launchOptions.executablePath = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
+      } catch (error) {
+        console.log('未找到系统Chrome，使用默认Chromium');
+      }
+
+      this.browser = await puppeteer.launch(launchOptions);
+      this.page = await this.browser.newPage();
+
+      // 设置用户代理
+      await this.page.setUserAgent('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
+
+      // 隐藏webdriver特征
+      await this.page.evaluateOnNewDocument(() => {
+        Object.defineProperty(navigator, 'webdriver', {
+          get: () => undefined,
+        });
+        delete navigator.__proto__.webdriver;
       });
+
+      console.log('✅ 浏览器启动成功');
+
+    } catch (error) {
+      console.error('❌ 浏览器启动失败:', error.message);
+      throw error;
+    }
+  }
+
+  // 访问直播间页面
+  async navigateToLiveRoom(liveUrl) {
+    try {
+      console.log('🌐 访问直播间:', liveUrl);
+
+      await this.page.goto(liveUrl, {
+        waitUntil: 'domcontentloaded',
+        timeout: 15000
+      });
+
+      // 等待页面加载完成
+      await new Promise(resolve => setTimeout(resolve, 3000));
+
+      console.log('✅ 成功访问直播间');
+
+    } catch (error) {
+      console.error('❌ 访问直播间失败:', error.message);
+      throw error;
+    }
+  }
+
+  // 设置WebSocket拦截
+  async setupWebSocketInterception() {
+    try {
+      console.log('🔍 设置WebSocket拦截...');
+
+      // 启用CDP (Chrome DevTools Protocol)
+      const client = await this.page.target().createCDPSession();
+      await client.send('Network.enable');
+      await client.send('Runtime.enable');
+
+      // 监听WebSocket创建
+      client.on('Network.webSocketCreated', (params) => {
+        console.log('🔗 WebSocket连接创建:', params.url);
+        this.emit('status-change', { status: 'websocket-created', url: params.url });
+      });
+
+      // 监听WebSocket消息
+      client.on('Network.webSocketFrameReceived', async (params) => {
+        // 减少日志输出，只在有大数据包时输出
+        const payloadLength = params.response.payloadData?.length || 0;
+        if (payloadLength > 1000) {
+          console.log('📨 收到WebSocket消息:', payloadLength, 'bytes');
+        }
+
+        await this.handleWebSocketFrame(params.response);
+      });
+
+      // 监听WebSocket发送的消息
+      client.on('Network.webSocketFrameSent', (params) => {
+        // console.log('📤 发送WebSocket消息:', {
+        //   requestId: params.requestId,
+        //   timestamp: params.timestamp,
+        //   payloadLength: params.response.payloadData?.length || 0
+        // });
+      });
+
+      // 监听WebSocket关闭
+      client.on('Network.webSocketClosed', (params) => {
+        console.log('❌ WebSocket连接关闭:', params.timestamp);
+        this.emit('status-change', { status: 'websocket-closed' });
+      });
+
+      console.log('✅ WebSocket拦截设置完成');
+
+    } catch (error) {
+      console.error('❌ WebSocket拦截设置失败:', error.message);
+      throw error;
+    }
+  }
+
+  // 处理WebSocket帧数据
+  async handleWebSocketFrame(response) {
+    try {
+
+      if (!response.payloadData) {
+        return;
+      }
+
+      // 将base64数据转换为Buffer
+      const buffer = Buffer.from(response.payloadData, 'base64');
+
+      // 减少日志输出频率
+      if (buffer.length > 2000) {
+        console.log('📦 收到大数据包:', buffer.length, 'bytes');
+      }
+
+      // 使用抖音解码器解析消息
+      const messages = await this.decoder.decode(buffer);
+      
+      if (messages.length > 0) {
+        // console.log(`🎯 解码成功: ${messages.length} 条消息`);
+        
+        messages.forEach(message => {
+          if (message) {
+            this.handleWebSocketMessage(message);
+          }
+        });
+      } else {
+        console.log('⚠️ 未能解码WebSocket数据');
+      }
+
+    } catch (error) {
+      console.error('❌ 处理WebSocket帧失败:', error.message);
+    }
+  }
+
+
+
+  // 尝试解析为文本数据
+  tryParseAsText(buffer) {
+    try {
+      // 尝试UTF-8解码
+      const text = buffer.toString('utf8');
+
+      console.log('解析',text)
+
+
+
+    } catch (error) {
+      console.log('❌ 文本解析失败:', error.message);
+    }
+  }
+
+  // 处理WebSocket消息
+  handleWebSocketMessage(message) {
+    try {
+      // 只处理感兴趣的消息类型
+      const interestingTypes = ['chat', 'gift', 'like', 'member', 'social'];
+      if (!interestingTypes.includes(message.type)) {
+        return;
+      }
+
+      // 构造标准化评论对象
+      const comment = {
+        id: `ws_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`,
+        username: message.user?.nickname || '匿名用户',
+        content: message.content || '',
+        timestamp: message.timestamp || Date.now(),
+        source: 'websocket',
+        live_url: this.currentLiveUrl || '',
+        user_id: message.user?.id || '',
+        level: message.user?.level || 0,
+        message_type: message.type
+      };
+
+      // 过滤空内容和无效内容
+      if (!comment.content || comment.content.trim().length === 0) {
+        return;
+      }
+
+      // 过滤明显的乱码内容
+      if (this.isGarbledText(comment.content)) {
+        return;
+      }
+
+      // 只在开发模式下输出详细日志
+      if (process.env.NODE_ENV === 'development' && comment.message_type === 'chat') {
+        console.log('💬 新聊天:', {
+          username: comment.username,
+          content: comment.content.substring(0, 30) + (comment.content.length > 30 ? '...' : '')
+        });
+      }
 
       // 保存到数据库
       if (this.database) {
-        this.database.saveComment(standardComment).catch((err) => {
-          console.error('保存评论到数据库失败:', err.message);
+        this.database.saveComment(comment).catch((err) => {
+          console.error('保存WebSocket评论到数据库失败:', err.message);
         });
       }
 
       // 发射事件
-      this.emit('new-comment', standardComment);
+      this.emit('new-comment', comment);
 
     } catch (error) {
-      console.error('处理新评论失败:', error.message);
+      console.error('处理WebSocket消息失败:', error.message);
     }
   }
 
+  // 检查是否为乱码文本
+  isGarbledText(text) {
+    if (!text || typeof text !== 'string') return true;
+    
+    // 检查是否包含过多的控制字符
+    const controlCharCount = (text.match(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g) || []).length;
+    const totalLength = text.length;
+    
+    // 如果控制字符超过30%，认为是乱码
+    if (totalLength > 0 && controlCharCount / totalLength > 0.3) {
+      return true;
+    }
+    
+    // 检查是否只包含特殊字符
+    const onlySpecialChars = /^[\x00-\x1F\x7F-\x9F\s]*$/.test(text);
+    if (onlySpecialChars) {
+      return true;
+    }
+    
+    return false;
+  }
+
+  // 停止监听
+  async stopMonitoring() {
+    console.log('🛑 停止监听...');
+
+    this.isMonitoring = false;
+
+    // 关闭浏览器
+    if (this.browser) {
+      await this.browser.close();
+      this.browser = null;
+      this.page = null;
+    }
+
+    this.emit('status-change', { status: 'stopped' });
+    console.log('✅ 监听已停止');
+  }
 }

@@ -21,9 +21,11 @@
     "cheerio": "^1.0.0-rc.12",
     "electron": "^37.2.4",
     "lucide-react": "^0.294.0",
+    "protobufjs": "^7.5.3",
     "puppeteer": "^21.0.0",
     "react": "^18.2.0",
-    "react-dom": "^18.2.0"
+    "react-dom": "^18.2.0",
+    "ws": "^8.18.3"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",

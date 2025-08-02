@@ -35,19 +35,23 @@ export class Database {
         username: comment.username,
         content: comment.content,
         timestamp: comment.timestamp,
-        user_id: comment.userId,
+        user_id: comment.user_id || comment.userId,
         level: comment.level,
         avatar: comment.avatar,
-        gift_name: comment.giftName,
-        gift_count: comment.giftCount,
-        live_url: comment.liveUrl,
+        gift_name: comment.gift_name || comment.giftName,
+        gift_count: comment.gift_count || comment.giftCount,
+        live_url: comment.live_url || comment.liveUrl,
+        message_type: comment.message_type || 'chat',
+        source: comment.source || 'websocket',
         created_at: Date.now()
       };
       
       if (existingIndex >= 0) {
         this.comments[existingIndex] = commentData;
+        console.log('📝 更新已存在评论:', comment.username);
       } else {
         this.comments.push(commentData);
+        console.log('📝 保存新评论:', comment.username, comment.content?.substring(0, 20));
       }
 
       // 更新用户统计
@@ -62,7 +66,7 @@ export class Database {
 
   async updateUserStats(comment) {
     try {
-      const userId = comment.userId;
+      const userId = comment.user_id || comment.userId || 'anonymous';
       const existing = this.userStats.get(userId) || {
         user_id: userId,
         username: comment.username,

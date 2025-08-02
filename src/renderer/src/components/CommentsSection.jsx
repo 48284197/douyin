@@ -1,5 +1,5 @@
 import React from 'react';
-import { Trash2, Download, MessageCircle } from 'lucide-react';
+import { Trash2, Download, MessageCircle, Gift, Heart, UserPlus, UserMinus, Share2 } from 'lucide-react';
 
 const CommentsSection = ({ comments, onClear, onExport }) => {
   const formatTime = (timestamp) => {
@@ -9,6 +9,57 @@ const CommentsSection = ({ comments, onClear, onExport }) => {
       minute: '2-digit',
       second: '2-digit'
     });
+  };
+
+  const getMessageIcon = (messageType) => {
+    switch (messageType) {
+      case 'chat':
+        return <MessageCircle className="w-4 h-4 text-blue-500" />;
+      case 'gift':
+        return <Gift className="w-4 h-4 text-orange-500" />;
+      case 'like':
+        return <Heart className="w-4 h-4 text-red-500" />;
+      case 'member':
+        return <UserPlus className="w-4 h-4 text-green-500" />;
+      case 'social':
+        return <Share2 className="w-4 h-4 text-purple-500" />;
+      default:
+        return <MessageCircle className="w-4 h-4 text-gray-500" />;
+    }
+  };
+
+  const getMessageStyle = (messageType) => {
+    switch (messageType) {
+      case 'chat':
+        return 'border-l-blue-500 bg-blue-50';
+      case 'gift':
+        return 'border-l-orange-500 bg-orange-50';
+      case 'like':
+        return 'border-l-red-500 bg-red-50';
+      case 'member':
+        return 'border-l-green-500 bg-green-50';
+      case 'social':
+        return 'border-l-purple-500 bg-purple-50';
+      default:
+        return 'border-l-gray-500 bg-gray-50';
+    }
+  };
+
+  const getMessageTypeText = (messageType) => {
+    switch (messageType) {
+      case 'chat':
+        return '聊天';
+      case 'gift':
+        return '礼物';
+      case 'like':
+        return '点赞';
+      case 'member':
+        return '成员';
+      case 'social':
+        return '社交';
+      default:
+        return '消息';
+    }
   };
 
   return (
@@ -50,31 +101,66 @@ const CommentsSection = ({ comments, onClear, onExport }) => {
           <div className="space-y-3">
             {comments.map((comment, index) => (
               <div
-                key={index}
-                className="bg-gray-50 rounded-lg p-3 border-l-4 border-douyin-pink animate-fade-in"
+                key={`${comment.id || index}-${comment.timestamp}`}
+                className={`rounded-lg p-3 border-l-4 animate-fade-in ${getMessageStyle(comment.message_type)}`}
               >
                 <div className="flex items-start justify-between mb-2">
                   <div className="flex items-center gap-2">
+                    {getMessageIcon(comment.message_type)}
                     <div className="w-8 h-8 bg-gradient-to-r from-douyin-pink to-douyin-blue rounded-full flex items-center justify-center text-white text-sm font-bold">
                       {comment.username?.charAt(0) || '?'}
                     </div>
                     <span className="font-medium text-gray-800">
                       {comment.username || '匿名用户'}
                     </span>
-                    {comment.level && (
+                    {comment.level && comment.level > 0 && (
                       <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded-full">
                         Lv.{comment.level}
                       </span>
                     )}
+                    <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">
+                      {getMessageTypeText(comment.message_type)}
+                    </span>
                   </div>
                   <span className="text-xs text-gray-500">
                     {formatTime(comment.timestamp)}
                   </span>
                 </div>
                 <p className="text-gray-700 leading-relaxed">{comment.content}</p>
-                {comment.giftName && (
-                  <div className="mt-2 text-sm text-orange-600 bg-orange-50 px-2 py-1 rounded">
-                    🎁 {comment.giftName} x{comment.giftCount || 1}
+                
+                {/* 礼物信息 */}
+                {comment.message_type === 'gift' && comment.gift && (
+                  <div className="mt-2 text-sm text-orange-600 bg-orange-100 px-3 py-1.5 rounded-md flex items-center gap-2">
+                    <Gift className="w-4 h-4" />
+                    <span>
+                      {comment.gift.name} x{comment.gift.count}
+                      {comment.gift.diamondCount > 0 && (
+                        <span className="ml-2 text-xs text-gray-600">
+                          ({comment.gift.diamondCount} 钻石)
+                        </span>
+                      )}
+                    </span>
+                  </div>
+                )}
+
+                {/* 点赞信息 */}
+                {comment.message_type === 'like' && comment.count && (
+                  <div className="mt-2 text-sm text-red-600 bg-red-100 px-3 py-1.5 rounded-md flex items-center gap-2">
+                    <Heart className="w-4 h-4" />
+                    <span>+{comment.count} 点赞</span>
+                    {comment.total && (
+                      <span className="text-xs text-gray-600">
+                        (总计: {comment.total})
+                      </span>
+                    )}
+                  </div>
+                )}
+
+                {/* 成员信息 */}
+                {comment.message_type === 'member' && comment.memberCount && (
+                  <div className="mt-2 text-sm text-green-600 bg-green-100 px-3 py-1.5 rounded-md flex items-center gap-2">
+                    <UserPlus className="w-4 h-4" />
+                    <span>当前在线: {comment.memberCount} 人</span>
                   </div>
                 )}
               </div>

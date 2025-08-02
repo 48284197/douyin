@@ -18,7 +18,7 @@ d.on('new-comment', (comment) => {
 });
 
 try {
-  await d.startMonitoring('https://live.douyin.com/16028686557?activity_name=&anchor_id=3166202891080029&banner_type=recommend&category_name=all&page_type=live_main_page');
+  await d.startMonitoring('https://live.douyin.com/494992812876');
 
 } catch (error) {
   console.error('启动失败:', error.message);

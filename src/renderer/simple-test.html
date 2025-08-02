@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>简单测试页面</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 40px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            text-align: center;
+        }
+        .container {
+            background: rgba(255,255,255,0.1);
+            padding: 40px;
+            border-radius: 20px;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        h1 {
+            font-size: 2.5em;
+            margin-bottom: 20px;
+        }
+        .status {
+            font-size: 1.2em;
+            margin: 20px 0;
+            padding: 15px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 10px;
+        }
+        .success {
+            background: rgba(76, 175, 80, 0.3);
+        }
+        .error {
+            background: rgba(244, 67, 54, 0.3);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎯 抖音直播监听器</h1>
+        <div class="status success">
+            ✅ Electron 窗口启动成功！
+        </div>
+        <div class="status">
+            📱 应用程序正在运行中...
+        </div>
+        <div class="status">
+            🔧 如果你看到这个页面，说明基本框架工作正常
+        </div>
+        <div class="status">
+            ⏰ 当前时间: <span id="time"></span>
+        </div>
+    </div>
+
+    <script>
+        // 显示当前时间
+        function updateTime() {
+            document.getElementById('time').textContent = new Date().toLocaleString('zh-CN');
+        }
+        
+        updateTime();
+        setInterval(updateTime, 1000);
+        
+        console.log('✅ 简单测试页面加载完成');
+    </script>
+</body>
+</html>

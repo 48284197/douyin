@@ -1,14 +1,30 @@
 import React, { useMemo } from 'react';
-import { TrendingUp, Users, Hash } from 'lucide-react';
+import { TrendingUp, Users, Hash, MessageCircle, Gift, Heart, UserPlus, Share2 } from 'lucide-react';
 
 const StatsSection = ({ comments }) => {
   const stats = useMemo(() => {
-    if (!comments.length) return { topUsers: [], hotWords: [], hourlyStats: [] };
+    if (!comments.length) return { 
+      topUsers: [], 
+      hotWords: [], 
+      hourlyStats: [],
+      messageTypes: {},
+      totalGifts: 0,
+      totalLikes: 0
+    };
 
     // 统计用户评论数
     const userStats = {};
     const wordStats = {};
     const hourlyStats = Array(24).fill(0);
+    const messageTypes = {
+      chat: 0,
+      gift: 0,
+      like: 0,
+      member: 0,
+      social: 0
+    };
+    let totalGifts = 0;
+    let totalLikes = 0;
 
     comments.forEach(comment => {
       // 用户统计
@@ -16,13 +32,28 @@ const StatsSection = ({ comments }) => {
         userStats[comment.username] = (userStats[comment.username] || 0) + 1;
       }
 
-      // 词汇统计 (简单分词)
-      const words = comment.content?.match(/[\u4e00-\u9fa5]+/g) || [];
-      words.forEach(word => {
-        if (word.length > 1) {
-          wordStats[word] = (wordStats[word] || 0) + 1;
-        }
-      });
+      // 消息类型统计
+      if (comment.message_type) {
+        messageTypes[comment.message_type] = (messageTypes[comment.message_type] || 0) + 1;
+      }
+
+      // 礼物和点赞统计
+      if (comment.message_type === 'gift' && comment.gift?.count) {
+        totalGifts += comment.gift.count;
+      }
+      if (comment.message_type === 'like' && comment.count) {
+        totalLikes += comment.count;
+      }
+
+      // 词汇统计 (只统计聊天消息)
+      if (comment.message_type === 'chat') {
+        const words = comment.content?.match(/[\u4e00-\u9fa5]+/g) || [];
+        words.forEach(word => {
+          if (word.length > 1) {
+            wordStats[word] = (wordStats[word] || 0) + 1;
+          }
+        });
+      }
 
       // 时间统计
       if (comment.timestamp) {
@@ -41,7 +72,7 @@ const StatsSection = ({ comments }) => {
       .slice(0, 10)
       .map(([word, count]) => ({ word, count }));
 
-    return { topUsers, hotWords, hourlyStats };
+    return { topUsers, hotWords, hourlyStats, messageTypes, totalGifts, totalLikes };
   }, [comments]);
 
   return (
@@ -56,6 +87,61 @@ const StatsSection = ({ comments }) => {
 
       {/* 统计内容 */}
       <div className="flex-1 overflow-y-auto p-4 space-y-6">
+        {/* 消息类型统计 */}
+        <div>
+          <h4 className="font-medium text-gray-800 mb-3">消息类型分布</h4>
+          {comments.length > 0 ? (
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <MessageCircle className="w-4 h-4 text-blue-500" />
+                  <span className="text-sm text-gray-700">聊天</span>
+                </div>
+                <span className="text-sm font-medium text-gray-600">
+                  {stats.messageTypes.chat || 0}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Gift className="w-4 h-4 text-orange-500" />
+                  <span className="text-sm text-gray-700">礼物</span>
+                </div>
+                <span className="text-sm font-medium text-gray-600">
+                  {stats.messageTypes.gift || 0} ({stats.totalGifts}个)
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Heart className="w-4 h-4 text-red-500" />
+                  <span className="text-sm text-gray-700">点赞</span>
+                </div>
+                <span className="text-sm font-medium text-gray-600">
+                  {stats.messageTypes.like || 0} ({stats.totalLikes}次)
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <UserPlus className="w-4 h-4 text-green-500" />
+                  <span className="text-sm text-gray-700">成员</span>
+                </div>
+                <span className="text-sm font-medium text-gray-600">
+                  {stats.messageTypes.member || 0}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Share2 className="w-4 h-4 text-purple-500" />
+                  <span className="text-sm text-gray-700">社交</span>
+                </div>
+                <span className="text-sm font-medium text-gray-600">
+                  {stats.messageTypes.social || 0}
+                </span>
+              </div>
+            </div>
+          ) : (
+            <p className="text-sm text-gray-500">暂无数据</p>
+          )}
+        </div>
         {/* 热门用户 */}
         <div>
           <div className="flex items-center gap-2 mb-3">

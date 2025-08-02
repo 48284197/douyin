@@ -1,14 +1,13 @@
-const { contextBridge, ipcRenderer } = require('electron');
+import { contextBridge, ipcRenderer } from 'electron';
 
-console.log('🔧 Preload 脚本开始加载...');
+console.log('🚀 Simple Preload 脚本开始执行...');
 
-// 设置一个全局标记
-window.preloadLoaded = true;
+// 简单测试，直接在 window 上设置一个属性
+window.preloadTest = 'Preload is working!';
 
 try {
-  // 暴露安全的API给渲染进程
   contextBridge.exposeInMainWorld('electronAPI', {
-    // 监听控制
+    test: () => 'API is working!',
     startMonitoring: (liveUrl) => {
       console.log('📡 调用 startMonitoring:', liveUrl);
       return ipcRenderer.invoke('start-monitoring', liveUrl);
@@ -17,12 +16,8 @@ try {
       console.log('📡 调用 stopMonitoring');
       return ipcRenderer.invoke('stop-monitoring');
     },
-    
-    // 数据获取
     getComments: (options) => ipcRenderer.invoke('get-comments', options),
     exportComments: (format) => ipcRenderer.invoke('export-comments', format),
-    
-    // 事件监听
     onNewComment: (callback) => {
       console.log('📡 注册 new-comment 监听器');
       ipcRenderer.on('new-comment', (event, comment) => {
@@ -30,7 +25,6 @@ try {
         callback(comment);
       });
     },
-    
     onStatusChange: (callback) => {
       console.log('📡 注册 status-change 监听器');
       ipcRenderer.on('status-change', (event, status) => {
@@ -38,28 +32,21 @@ try {
         callback(status);
       });
     },
-    
     onMenuAction: (callback) => {
       ipcRenderer.on('menu-start-monitoring', () => callback('start'));
       ipcRenderer.on('menu-stop-monitoring', () => callback('stop'));
     },
-    
-    // 移除监听器
     removeAllListeners: (channel) => {
       ipcRenderer.removeAllListeners(channel);
-    },
-    
-    // 调试方法
-    debug: {
-      test: () => {
-        console.log('🧪 Preload 测试方法被调用');
-        return 'Preload script is working!';
-      }
     }
   });
-
-  console.log('✅ Preload 脚本加载完成，electronAPI 已暴露');
   
+  console.log('✅ Simple Preload 脚本执行完成');
 } catch (error) {
-  console.error('❌ Preload 脚本加载失败:', error);
+  console.error('❌ Simple Preload 脚本执行失败:', error);
 }
+
+// 在 DOM 加载后再次检查
+document.addEventListener('DOMContentLoaded', () => {
+  console.log('📄 DOM 加载完成，检查 electronAPI:', typeof window.electronAPI);
+});
