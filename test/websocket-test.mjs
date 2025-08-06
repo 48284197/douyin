@@ -36,7 +36,7 @@ try {
   console.log('💡 提示: 按 Ctrl+C 停止监听');
   
   // 使用一个活跃的直播间URL
-  await crawler.startMonitoring('https://live.douyin.com/471303331671');
+  await crawler.startMonitoring('https://live.douyin.com/379595210124');
   
   console.log('✅ 监听已启动，等待WebSocket评论数据...');
   
