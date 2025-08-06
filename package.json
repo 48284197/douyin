@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "抖音直播评论监听桌面应用",
   "main": "dist-electron/main.js",
+  "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "vite build && electron-builder",
@@ -18,9 +19,11 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
+    "@nut-tree-fork/nut-js": "^4.2.6",
     "cheerio": "^1.0.0-rc.12",
     "electron": "^37.2.4",
     "lucide-react": "^0.294.0",
+    "nut": "^0.4.2",
     "protobufjs": "^7.5.3",
     "puppeteer": "^21.0.0",
     "react": "^18.2.0",
