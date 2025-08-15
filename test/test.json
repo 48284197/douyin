@@ -1,0 +1,38 @@
+[
+    {
+        "type": "chat",
+        "content": "要换号了",
+        "user": {
+            "id": "3425734010079165",
+            "nickname": "名君",
+            "level": 0,
+            "avatar": "https://p3.douyinpic.com/aweme/100x100/aweme-avatar/tos-cn-i-0813_oAeeZcA4IDpNwjAB4hLBnnnEZQ8UGBAbAAdeF7.jpeg?from=3067671334"
+        },
+        "timestamp": 1755246334580,
+        "roomId": "7538719254653291298",
+        "msgId": "7538725583619183657"
+    },
+    {
+        "type": "member",
+        "content": "离开了直播间",
+        "user": {
+            "id": "1433361705338403",
+            "nickname": "🔥若是君似轻雨",
+            "level": 0,
+            "avatar": "https://p11.douyinpic.com/aweme/100x100/aweme-avatar/tos-cn-avt-0015_66741431e1354b3ae73b0953e868553d.jpeg?from=3067671334"
+        },
+        "action": {
+            "low": 1,
+            "high": 0,
+            "unsigned": true
+        },
+        "memberCount": {
+            "low": 13595,
+            "high": 0,
+            "unsigned": true
+        },
+        "timestamp": 1755246334580,
+        "roomId": "7538719254653291298",
+        "msgId": "7538725597137591592"
+    }
+]

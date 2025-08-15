@@ -1,0 +1,68 @@
+{
+  "name": "douyin-live-monitor",
+  "version": "1.0.0",
+  "description": "抖音直播评论监听桌面应用",
+  "main": "dist-electron/main.js",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build && electron-builder",
+    "preview": "vite preview"
+  },
+  "keywords": [
+    "douyin",
+    "live",
+    "comments",
+    "crawler",
+    "electron"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@nut-tree-fork/nut-js": "^4.2.6",
+    "cheerio": "^1.0.0-rc.12",
+    "lucide-react": "^0.294.0",
+    "nut": "^0.4.2",
+    "protobufjs": "^7.5.3",
+    "puppeteer": "^21.0.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "ws": "^8.18.3"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/react": "^18.2.0",
+    "@types/react-dom": "^18.2.0",
+    "@vitejs/plugin-react": "^4.1.0",
+    "autoprefixer": "^10.4.16",
+    "concurrently": "^8.2.2",
+    "electron": "^37.2.4",
+    "electron-builder": "^24.13.3",
+    "postcss": "^8.4.31",
+    "tailwindcss": "^3.3.5",
+    "vite": "^4.5.0",
+    "vite-plugin-electron": "^0.15.5",
+    "wait-on": "^7.2.0"
+  },
+  "build": {
+    "appId": "com.douyin.live.monitor",
+    "productName": "抖音直播监听器",
+    "directories": {
+      "output": "dist-app"
+    },
+    "files": [
+      "dist-electron/**/*",
+      "dist/**/*",
+      "node_modules/**/*",
+      "package.json"
+    ],
+    "mac": {
+      "category": "public.app-category.utilities"
+    },
+    "win": {
+      "target": "nsis"
+    },
+    "linux": {
+      "target": "AppImage"
+    }
+  }
+}
