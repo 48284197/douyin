@@ -19,3 +19,202 @@ body {
   height: 100vh;
   overflow: hidden;
 }
+
+/* 游戏相关样式 */
+@keyframes rope-shake {
+  0%, 100% { transform: translateY(0px); }
+  25% { transform: translateY(-2px); }
+  75% { transform: translateY(2px); }
+}
+
+@keyframes power-pulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.1); opacity: 0.8; }
+}
+
+@keyframes team-cheer {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-5px); }
+}
+
+@keyframes victory-celebration {
+  0%, 100% { transform: rotate(0deg) scale(1); }
+  25% { transform: rotate(-5deg) scale(1.05); }
+  75% { transform: rotate(5deg) scale(1.05); }
+}
+
+@keyframes floating {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-10px); }
+}
+
+@keyframes glow {
+  0%, 100% { box-shadow: 0 0 5px rgba(139, 92, 246, 0.3); }
+  50% { box-shadow: 0 0 20px rgba(139, 92, 246, 0.6), 0 0 30px rgba(139, 92, 246, 0.4); }
+}
+
+@keyframes button-press {
+  0% { transform: scale(1); }
+  50% { transform: scale(0.95); }
+  100% { transform: scale(1); }
+}
+
+@keyframes combo-flash {
+  0%, 100% { background-color: rgba(234, 179, 8, 0.8); }
+  50% { background-color: rgba(234, 179, 8, 1); }
+}
+
+@keyframes rope-tension {
+  0%, 100% { transform: scaleX(1); }
+  50% { transform: scaleX(1.02); }
+}
+
+@keyframes team-power {
+  0%, 100% { transform: scale(1); filter: brightness(1); }
+  50% { transform: scale(1.05); filter: brightness(1.2); }
+}
+
+/* 游戏组件样式类 */
+.rope-active {
+  animation: rope-shake 0.3s ease-in-out infinite;
+}
+
+.rope-tension {
+  animation: rope-tension 0.5s ease-in-out infinite;
+}
+
+.power-boost {
+  animation: power-pulse 0.6s ease-in-out infinite;
+}
+
+.team-celebrating {
+  animation: team-cheer 0.8s ease-in-out infinite;
+}
+
+.victory-effect {
+  animation: victory-celebration 1s ease-in-out infinite;
+}
+
+.floating-element {
+  animation: floating 3s ease-in-out infinite;
+}
+
+.glow-effect {
+  animation: glow 2s ease-in-out infinite;
+}
+
+.button-active {
+  animation: button-press 0.1s ease-in-out;
+}
+
+.combo-active {
+  animation: combo-flash 0.3s ease-in-out;
+}
+
+.team-power-active {
+  animation: team-power 0.4s ease-in-out;
+}
+
+/* 自定义滚动条 */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 3px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.5);
+}
+
+
+
+/* 文字发光效果 */
+.text-glow {
+  text-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+}
+
+.text-glow-colored {
+  text-shadow: 0 0 10px currentColor;
+}
+
+/* 加载动画 */
+@keyframes spin-slow {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.animate-spin-slow {
+  animation: spin-slow 3s linear infinite;
+}
+
+
+
+/* 游戏状态指示器 */
+.status-indicator {
+  position: relative;
+}
+
+.status-indicator::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #10b981;
+  animation: pulse 2s infinite;
+}
+
+.status-indicator.offline::after {
+  background: #ef4444;
+}
+
+.status-indicator.connecting::after {
+  background: #f59e0b;
+}
+
+/* 粒子效果容器 */
+.particles-container {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.particle {
+  position: absolute;
+  width: 4px;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.6);
+  border-radius: 50%;
+  animation: particle-float 3s linear infinite;
+}
+
+@keyframes particle-float {
+  0% {
+    transform: translateY(100vh) rotate(0deg);
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+  }
+  90% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-10px) rotate(360deg);
+    opacity: 0;
+  }
+}

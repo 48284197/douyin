@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain } from 'electron';
+import { app, BrowserWindow, ipcMain, screen } from 'electron';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
@@ -8,6 +8,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const isDev = process.env.NODE_ENV === 'development' || process.argv.includes('--dev');
 let mainWindow;
+let miniWindow = null;
 let db, crawler;
 
 async function initializeApp() {
@@ -43,6 +44,202 @@ function setupIPC() {
       return { success: true };
     } catch (error) {
       console.error('❌ 启动监听失败:', error);
+      return { success: false, error: error.message };
+    }
+  });
+
+  // 创建小窗口
+  ipcMain.handle('create-mini-window', async (event, options = {}) => {
+    try {
+      if (miniWindow && !miniWindow.isDestroyed()) {
+        miniWindow.focus();
+        return { success: true, message: '弹幕小窗口已存在' };
+      }
+
+      const { width = 400, height = 500, backgroundColor = '#80000000', title = '弹幕小窗' } = options;
+      
+        // 直接使用绝对路径确保preload脚本能够立即加载
+  const preloadPath = isDev
+    ? path.join(__dirname, 'simple-preload.js')
+    : path.join(__dirname, 'simple-preload.js');
+     
+      
+      console.log('🔧 小窗口 Preload 脚本路径:', preloadPath);
+      console.log('🔧 Preload 文件是否存在:', fs.existsSync(preloadPath));
+      
+      miniWindow = new BrowserWindow({
+        width,
+        height,
+        title,
+        frame: false,
+        transparent: true,
+        alwaysOnTop: false,
+        resizable: true,
+        minimizable: false,
+        maximizable: false,
+        skipTaskbar: true,
+        hasShadow: false,
+        thickFrame: false,
+        webPreferences: {
+          nodeIntegration: false,
+          contextIsolation: true,
+          preload: preloadPath,
+          devTools: isDev,
+          hardwareAcceleration: true,
+          backgroundThrottling: false
+        }
+      });
+
+      // 设置窗口背景色
+      miniWindow.setBackgroundColor(backgroundColor);
+
+      // 加载小窗口页面
+      if (isDev) {
+        await miniWindow.loadURL('http://localhost:5174/#/mini-window');
+      } else {
+        await miniWindow.loadFile(path.join(__dirname, '../renderer/index.html'), {
+          hash: 'mini-window'
+        });
+      }
+
+      miniWindow.show();
+
+      // 在开发模式下打开开发者工具
+      if (isDev) {
+        miniWindow.webContents.openDevTools();
+      }
+
+      miniWindow.on('closed', () => {
+        miniWindow = null;
+      });
+
+      console.log('✅ 小窗口创建成功');
+      return { success: true };
+    } catch (error) {
+      console.error('❌ 创建小窗口失败:', error);
+      return { success: false, error: error.message };
+    }
+  });
+
+  // 关闭小窗口
+  ipcMain.handle('close-mini-window', async () => {
+    try {
+      if (miniWindow && !miniWindow.isDestroyed()) {
+        miniWindow.close();
+        miniWindow = null;
+      }
+      return { success: true };
+    } catch (error) {
+      console.error('❌ 关闭小窗口失败:', error);
+      return { success: false, error: error.message };
+    }
+  });
+
+  // 设置小窗口置顶
+  ipcMain.handle('set-mini-window-always-on-top', async (event, flag) => {
+    try {
+      if (miniWindow && !miniWindow.isDestroyed()) {
+        miniWindow.setAlwaysOnTop(flag);
+      }
+      return { success: true };
+    } catch (error) {
+      console.error('❌ 设置窗口置顶失败:', error);
+      return { success: false, error: error.message };
+    }
+  });
+
+  // 设置小窗口背景色
+  ipcMain.handle('set-mini-window-background', async (event, backgroundColor) => {
+    try {
+      if (miniWindow && !miniWindow.isDestroyed()) {
+        miniWindow.setBackgroundColor(backgroundColor);
+      }
+      return { success: true };
+    } catch (error) {
+      console.error('❌ 设置窗口背景失败:', error);
+      return { success: false, error: error.message };
+    }
+  });
+
+  // 设置小窗口大小
+  ipcMain.handle('set-mini-window-size', async (event, width, height) => {
+    try {
+      if (miniWindow && !miniWindow.isDestroyed()) {
+        miniWindow.setSize(width, height);
+      }
+      return { success: true };
+    } catch (error) {
+      console.error('❌ 设置窗口大小失败:', error);
+      return { success: false, error: error.message };
+    }
+  });
+
+  // 获取小窗口边界信息
+  ipcMain.handle('get-mini-window-bounds', async () => {
+    try {
+      if (miniWindow && !miniWindow.isDestroyed()) {
+        const [x, y] = miniWindow.getPosition();
+        const [width, height] = miniWindow.getSize();
+        return { success: true, data: { x, y, width, height } };
+      }
+      return { success: false, error: '窗口不存在' };
+    } catch (error) {
+      console.error('❌ 获取窗口边界失败:', error);
+      return { success: false, error: error.message };
+    }
+  });
+
+  // 设置小窗口绝对位置
+  ipcMain.handle('set-mini-window-position', async (event, x, y) => {
+    try {
+      if (miniWindow && !miniWindow.isDestroyed()) {
+        const [windowWidth, windowHeight] = miniWindow.getSize();
+        
+        // 获取屏幕工作区域
+        const display = screen.getPrimaryDisplay();
+        const { width: screenWidth, height: screenHeight } = display.workAreaSize;
+        const { x: screenX, y: screenY } = display.workArea;
+        
+        // 边界检测 - 确保窗口不会完全移出屏幕
+        const minVisibleArea = 50; // 至少保留50px可见
+        const newX = Math.max(screenX - windowWidth + minVisibleArea, Math.min(x, screenX + screenWidth - minVisibleArea));
+        const newY = Math.max(screenY, Math.min(y, screenY + screenHeight - minVisibleArea));
+        
+        miniWindow.setPosition(newX, newY);
+      }
+      return { success: true };
+    } catch (error) {
+      console.error('❌ 设置窗口位置失败:', error);
+      return { success: false, error: error.message };
+    }
+  });
+
+  // 移动小窗口（保留兼容性）
+  ipcMain.handle('move-mini-window', async (event, deltaX, deltaY) => {
+    try {
+      if (miniWindow && !miniWindow.isDestroyed()) {
+        const [currentX, currentY] = miniWindow.getPosition();
+        const [windowWidth, windowHeight] = miniWindow.getSize();
+        
+        // 获取屏幕工作区域
+        const display = screen.getPrimaryDisplay();
+        const { width: screenWidth, height: screenHeight } = display.workAreaSize;
+        const { x: screenX, y: screenY } = display.workArea;
+        
+        // 计算新位置
+        let newX = currentX + deltaX;
+        let newY = currentY + deltaY;
+        
+        // 边界检测 - 确保窗口不会完全移出屏幕
+        const minVisibleArea = 50; // 至少保留50px可见
+        newX = Math.max(screenX - windowWidth + minVisibleArea, Math.min(newX, screenX + screenWidth - minVisibleArea));
+        newY = Math.max(screenY, Math.min(newY, screenY + screenHeight - minVisibleArea));
+        
+        miniWindow.setPosition(newX, newY);
+      }
+      return { success: true };
+    } catch (error) {
+      console.error('❌ 移动窗口失败:', error);
       return { success: false, error: error.message };
     }
   });
@@ -137,11 +334,22 @@ function setupCrawlerEventListeners() {
   // 监听新评论事件
   crawler.on('new-comment', (comment) => {
     console.log('📨 转发新评论事件到渲染进程:', comment.username, comment.content?.substring(0, 20));
+    
+    // 发送给主窗口
     if (mainWindow && !mainWindow.isDestroyed()) {
       try {
         mainWindow.webContents.send('new-comment', comment);
       } catch (error) {
-        console.error('发送新评论事件失败:', error);
+        console.error('发送新评论事件到主窗口失败:', error);
+      }
+    }
+    
+    // 发送给小窗口
+    if (miniWindow && !miniWindow.isDestroyed()) {
+      try {
+        miniWindow.webContents.send('new-comment', comment);
+      } catch (error) {
+        console.error('发送新评论事件到小窗口失败:', error);
       }
     }
   });

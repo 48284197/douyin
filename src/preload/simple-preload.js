@@ -44,6 +44,36 @@ try {
     },
     removeAllListeners: (channel) => {
       ipcRenderer.removeAllListeners(channel);
+    },
+    // 小窗口相关API
+    createMiniWindow: (options) => {
+      console.log('📱 调用 createMiniWindow:', options);
+      return ipcRenderer.invoke('create-mini-window', options);
+    },
+    closeMiniWindow: () => {
+      console.log('📱 调用 closeMiniWindow');
+      return ipcRenderer.invoke('close-mini-window');
+    },
+    setMiniWindowAlwaysOnTop: (flag) => {
+      console.log('📱 调用 setMiniWindowAlwaysOnTop:', flag);
+      return ipcRenderer.invoke('set-mini-window-always-on-top', flag);
+    },
+    setMiniWindowBackground: (backgroundColor) => {
+      console.log('📱 调用 setMiniWindowBackground:', backgroundColor);
+      return ipcRenderer.invoke('set-mini-window-background', backgroundColor);
+    },
+    setMiniWindowSize: (width, height) => {
+      console.log('📱 调用 setMiniWindowSize:', width, height);
+      return ipcRenderer.invoke('set-mini-window-size', width, height);
+    },
+    moveWindow: (deltaX, deltaY) => {
+      return ipcRenderer.invoke('move-mini-window', deltaX, deltaY);
+    },
+    getMiniWindowBounds: () => {
+      return ipcRenderer.invoke('get-mini-window-bounds');
+    },
+    setMiniWindowPosition: (x, y) => {
+      return ipcRenderer.invoke('set-mini-window-position', x, y);
     }
   });
   

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Play, Square, Download, Trash2, Users, MessageCircle, Clock, TrendingUp } from 'lucide-react';
+import { Play, Square, Download, Trash2, Users, MessageCircle, Clock, TrendingUp, ExternalLink } from 'lucide-react';
 import Header from './components/Header';
 import ControlPanel from './components/ControlPanel';
 import CommentsSection from './components/CommentsSection';
@@ -10,7 +10,11 @@ import GiftStats from './components/GiftStats';
 import ConnectionStatus from './components/ConnectionStatus';
 import ErrorBoundary from './components/ErrorBoundary';
 
+import MiniWindow from './components/MiniWindow';
+
 function App() {
+
+  
   const [isMonitoring, setIsMonitoring] = useState(false);
   const [liveUrl, setLiveUrl] = useState('https://live.douyin.com/730184441361');
   const [comments, setComments] = useState([]);
@@ -30,6 +34,7 @@ function App() {
 
   const [debugInfo, setDebugInfo] = useState([]);
   const [lastCommentTime, setLastCommentTime] = useState(null);
+  const [miniWindowOpen, setMiniWindowOpen] = useState(false);
 
   const addDebugInfo = (message) => {
     const timestamp = new Date().toLocaleTimeString();
@@ -225,6 +230,45 @@ function App() {
     }));
   };
 
+  const handleOpenMiniWindow = async () => {
+    try {
+      if (!window.electronAPI) {
+        alert('Electron API 未就绪');
+        return;
+      }
+
+      // 从URL中提取房间ID作为窗口标题
+      const extractRoomId = (url) => {
+        try {
+          const match = url.match(/live\.douyin\.com\/(\d+)/);
+          return match ? match[1] : '直播间';
+        } catch {
+          return '直播间';
+        }
+      };
+
+      const roomId = extractRoomId(liveUrl);
+      const windowTitle = `直播间${roomId}`;
+
+      const result = await window.electronAPI.createMiniWindow({
+        width: 400,
+        height: 500,
+        backgroundColor: '#80000000', // 半透明黑色背景
+        title: windowTitle
+      });
+
+      if (result.success) {
+        setMiniWindowOpen(true);
+        addDebugInfo('弹幕小窗口创建成功');
+      } else {
+        alert(`创建弹幕小窗口失败: ${result.error}`);
+      }
+    } catch (error) {
+      console.error('创建弹幕小窗口失败:', error);
+      alert(`创建弹幕小窗口失败: ${error.message}`);
+    }
+  };
+
   // 过滤评论 - 添加安全检查
   const filteredComments = Array.isArray(comments) 
     ? comments.filter(comment => 
@@ -233,6 +277,13 @@ function App() {
         messageFilters[comment.message_type] !== false
       )
     : [];
+
+  // 检查是否是小窗口路由
+  if (window.location.hash === '#/mini-window') {
+    return <MiniWindow />;
+  }
+
+
 
   return (
     <div className="h-screen bg-gray-50 flex flex-col">
@@ -246,6 +297,19 @@ function App() {
         onStop={handleStopMonitoring}
         stats={stats}
       />
+      
+      {/* 弹幕小窗按钮 - 只在直播中时显示 */}
+      {isMonitoring && (
+        <div className="px-4 pb-2">
+          <button
+            onClick={handleOpenMiniWindow}
+            className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-bold py-3 px-6 rounded-lg transition-all duration-200 transform hover:scale-105 flex items-center space-x-2 shadow-lg"
+          >
+            <MessageCircle className="w-5 h-5" />
+            <span>弹幕小窗</span>
+          </button>
+        </div>
+      )}
 
       <main className="flex-1 flex flex-col gap-4 p-4 min-h-0">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">

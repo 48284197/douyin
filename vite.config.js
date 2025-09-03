@@ -44,7 +44,7 @@ export default defineConfig({
             outDir: 'dist-electron',
             lib: {
               entry: 'src/preload/simple-preload.js',
-              formats: ['es'],
+              formats: ['cjs'],
               fileName: () => 'simple-preload.js'
             },
             rollupOptions: {
