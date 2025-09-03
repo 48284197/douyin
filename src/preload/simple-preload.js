@@ -74,6 +74,15 @@ try {
     },
     setMiniWindowPosition: (x, y) => {
       return ipcRenderer.invoke('set-mini-window-position', x, y);
+    },
+    // 用户数据管理API
+    clearUserData: () => {
+      console.log('🗑️ 调用 clearUserData');
+      return ipcRenderer.invoke('clear-user-data');
+    },
+    getUserDataDir: () => {
+      console.log('📁 调用 getUserDataDir');
+      return ipcRenderer.invoke('get-user-data-dir');
     }
   });
   

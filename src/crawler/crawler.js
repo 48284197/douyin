@@ -1,6 +1,9 @@
 import puppeteer from 'puppeteer';
 import { EventEmitter } from 'events';
 import { OptimizedDouyinDecoder } from '../decoder/optimized-decoder.js';
+import path from 'path';
+import os from 'os';
+import fs from 'fs';
 
 export class DouyinCrawler extends EventEmitter {
   constructor() {
@@ -77,15 +80,34 @@ export class DouyinCrawler extends EventEmitter {
     try {
       console.log('🚀 启动浏览器...');
 
+      // 设置用户数据目录，保持登录状态
+      const userDataDir = path.join(os.homedir(), '.douyin-crawler-data');
+      console.log('📁 用户数据目录:', userDataDir);
+
+      // 清理可能存在的锁定文件
+      const lockFile = path.join(userDataDir, 'SingletonLock');
+      try {
+        if (fs.existsSync(lockFile)) {
+          fs.unlinkSync(lockFile);
+          console.log('🔓 已清理浏览器锁定文件');
+        }
+      } catch (error) {
+        console.log('⚠️ 清理锁定文件失败:', error.message);
+      }
+
       const launchOptions = {
         headless: false, // 非无头模式，便于调试
+        userDataDir, // 设置用户数据目录，保持登录状态
         args: [
           '--no-sandbox',
           '--disable-setuid-sandbox',
           '--disable-dev-shm-usage',
           '--disable-blink-features=AutomationControlled',
           '--disable-web-security',
-          '--disable-features=site-per-process'
+          '--disable-features=site-per-process',
+          '--disable-background-timer-throttling',
+          '--disable-backgrounding-occluded-windows',
+          '--disable-renderer-backgrounding'
         ],
         timeout: 15000,
         ignoreHTTPSErrors: true,
@@ -369,5 +391,28 @@ export class DouyinCrawler extends EventEmitter {
   clearComments() {
     this.comments = [];
     console.log('✅ 评论数据已清空');
+  }
+
+  // 清除用户数据目录（重新登录时使用）
+  static async clearUserData() {
+    try {
+      const userDataDir = path.join(os.homedir(), '.douyin-crawler-data');
+      if (fs.existsSync(userDataDir)) {
+        await fs.promises.rm(userDataDir, { recursive: true, force: true });
+        console.log('✅ 用户数据已清除，下次启动需要重新登录');
+        return { success: true, message: '用户数据已清除' };
+      } else {
+        console.log('ℹ️ 用户数据目录不存在');
+        return { success: true, message: '用户数据目录不存在' };
+      }
+    } catch (error) {
+      console.error('❌ 清除用户数据失败:', error.message);
+      return { success: false, error: error.message };
+    }
+  }
+
+  // 获取用户数据目录路径
+  static getUserDataDir() {
+    return path.join(os.homedir(), '.douyin-crawler-data');
   }
 }

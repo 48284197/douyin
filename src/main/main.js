@@ -318,6 +318,35 @@ function setupIPC() {
       return { success: false, message: error.message };
     }
   });
+
+  // 清除用户数据（重新登录）
+  ipcMain.handle('clear-user-data', async () => {
+    try {
+      // 先停止监听
+      if (crawler && crawler.isMonitoring) {
+        await crawler.stopMonitoring();
+      }
+      
+      // 清除用户数据
+      const result = await DouyinCrawler.clearUserData();
+      return result;
+    } catch (error) {
+      console.error('清除用户数据失败:', error);
+      return { success: false, error: error.message };
+    }
+  });
+
+  // 获取用户数据目录路径
+  ipcMain.handle('get-user-data-dir', async () => {
+    try {
+      const userDataDir = DouyinCrawler.getUserDataDir();
+      const exists = fs.existsSync(userDataDir);
+      return { success: true, path: userDataDir, exists };
+    } catch (error) {
+      console.error('获取用户数据目录失败:', error);
+      return { success: false, error: error.message };
+    }
+  });
 }
 
 // 单独的函数来设置爬虫事件监听

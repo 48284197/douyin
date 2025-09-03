@@ -94,7 +94,14 @@ function App() {
         console.log('📡 状态变化:', newStatus);
         addDebugInfo(`状态变化: ${newStatus.status}`);
         setStatus(newStatus.status);
-        setIsMonitoring(newStatus.status === 'monitoring');
+        
+        // 更新监听状态
+        if (newStatus.status === 'monitoring') {
+          setIsMonitoring(true);
+        } else if (newStatus.status === 'stopped') {
+          setIsMonitoring(false);
+        }
+        
         if (newStatus.onlineUsers !== undefined) {
           setStats(prev => ({
             ...prev,
@@ -186,6 +193,14 @@ function App() {
         setIsMonitoring(false);
         setStatus('offline');
         console.log('✅ 监听已停止');
+        
+        // 停止监听时关闭小窗
+        try {
+          await window.electronAPI.closeMiniWindow();
+          console.log('🪟 小窗已关闭');
+        } catch (miniWindowError) {
+          console.log('🪟 小窗关闭失败或未打开:', miniWindowError.message);
+        }
       } else {
         alert(`停止失败: ${result.error}`);
         console.error('❌ 停止监听失败:', result.error);
@@ -298,18 +313,22 @@ function App() {
         stats={stats}
       />
       
-      {/* 弹幕小窗按钮 - 只在直播中时显示 */}
-      {isMonitoring && (
-        <div className="px-4 pb-2">
-          <button
-            onClick={handleOpenMiniWindow}
-            className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-bold py-3 px-6 rounded-lg transition-all duration-200 transform hover:scale-105 flex items-center space-x-2 shadow-lg"
-          >
-            <MessageCircle className="w-5 h-5" />
-            <span>弹幕小窗</span>
-          </button>
-        </div>
-      )}
+      {/* 弹幕小窗按钮 - 始终显示 */}
+      <div className="px-4 pb-2">
+        <button
+          onClick={handleOpenMiniWindow}
+          disabled={!isMonitoring}
+          className={`font-bold py-3 px-6 rounded-lg transition-all duration-200 transform hover:scale-105 flex items-center space-x-2 shadow-lg ${
+            isMonitoring 
+              ? 'bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white' 
+              : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+          }`}
+          title={!isMonitoring ? '请先开始监听直播' : '打开弹幕小窗'}
+        >
+          <MessageCircle className="w-5 h-5" />
+          <span>弹幕小窗</span>
+        </button>
+      </div>
 
       <main className="flex-1 flex flex-col gap-4 p-4 min-h-0">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">

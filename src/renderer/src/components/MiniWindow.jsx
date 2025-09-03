@@ -179,13 +179,21 @@ function MiniWindow() {
 
   // 监听评论数据
   useEffect(() => {
-    const handleCommentUpdate = (newComments) => {
-      setComments(newComments.slice(-50)); // 只保留最新的50条评论
+    const handleNewComment = (comment) => {
+      console.log('🪟 小窗收到新评论:', comment);
+      setComments(prev => [comment, ...prev].slice(0, 50)); // 只保留最新的50条评论
     };
 
-    if (window.electronAPI && window.electronAPI.onCommentsUpdate) {
-      window.electronAPI.onCommentsUpdate(handleCommentUpdate);
+    if (window.electronAPI && window.electronAPI.onNewComment) {
+      window.electronAPI.onNewComment(handleNewComment);
     }
+
+    // 清理函数
+    return () => {
+      if (window.electronAPI && window.electronAPI.removeAllListeners) {
+        window.electronAPI.removeAllListeners('new-comment');
+      }
+    };
   }, []);
 
   // 设置窗口样式

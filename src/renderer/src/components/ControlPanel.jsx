@@ -1,7 +1,36 @@
-import React from 'react';
-import { Play, Square, Users, MessageCircle, Clock } from 'lucide-react';
+import React, { useState } from 'react';
+import { Play, Square, Users, MessageCircle, Clock, RefreshCw, AlertTriangle } from 'lucide-react';
 
 const ControlPanel = ({ liveUrl, setLiveUrl, isMonitoring, onStart, onStop, stats }) => {
+  const [isClearing, setIsClearing] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
+
+  const handleClearUserData = async () => {
+    if (!showConfirm) {
+      setShowConfirm(true);
+      return;
+    }
+
+    setIsClearing(true);
+    try {
+      const result = await window.electronAPI.clearUserData();
+      if (result.success) {
+        alert('登录数据已清除！下次启动监听时需要重新登录。');
+      } else {
+        alert(`清除失败: ${result.error}`);
+      }
+    } catch (error) {
+      alert(`清除失败: ${error.message}`);
+    } finally {
+      setIsClearing(false);
+      setShowConfirm(false);
+    }
+  };
+
+  const cancelClear = () => {
+    setShowConfirm(false);
+  };
+
   return (
     <section className="bg-white shadow-sm border-b border-gray-200 px-6 py-4">
       {/* URL输入和控制按钮 */}
@@ -30,6 +59,37 @@ const ControlPanel = ({ liveUrl, setLiveUrl, isMonitoring, onStart, onStop, stat
           <Square className="w-4 h-4" />
           停止监听
         </button>
+        
+        {/* 清除登录数据按钮 */}
+        {!showConfirm ? (
+          <button
+            onClick={handleClearUserData}
+            disabled={isMonitoring || isClearing}
+            className="px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center gap-2 transition-colors"
+            title="清除登录数据，下次需要重新登录"
+          >
+            <RefreshCw className={`w-4 h-4 ${isClearing ? 'animate-spin' : ''}`} />
+            重新登录
+          </button>
+        ) : (
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleClearUserData}
+              disabled={isClearing}
+              className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 disabled:bg-gray-400 flex items-center gap-2 transition-colors"
+            >
+              <AlertTriangle className="w-4 h-4" />
+              确认清除
+            </button>
+            <button
+              onClick={cancelClear}
+              disabled={isClearing}
+              className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 disabled:bg-gray-400 flex items-center gap-2 transition-colors"
+            >
+              取消
+            </button>
+          </div>
+        )}
       </div>
 
       {/* 统计信息栏 */}
